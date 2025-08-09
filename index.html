@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Monitoreo Ambiental ESP32</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles.css" />
+    </head>
+    <body>
+    <header>
+        <h1>Monitoreo Ambiental</h1>
+        <p>Actualiza cada 10 segundos desde la API</p>
+    </header>
+
+    <main>
+        <section class="cards">
+        <div class="card">
+            <div class="label">Temperatura actual</div>
+            <div id="temp-valor" class="value">--</div>
+            <div class="unit">°C</div>
+        </div>
+        <div class="card">
+            <div class="label">Humedad actual</div>
+            <div id="hum-valor" class="value">--</div>
+            <div class="unit">%</div>
+        </div>
+        <div class="card">
+        <div class="label">Última lectura</div>
+            <div id="ts-valor" class="value small">--</div>
+        </div>
+        </section>
+
+        <section class="tabla">
+        <h2>Últimas 10 temperaturas</h2>
+        <table>
+            <thead>
+            <tr>
+            <th>Fecha/Hora (UTC)</th>
+            <th>Temperatura (°C)</th>
+            </tr>
+            </thead>
+            <tbody id="tabla-body">
+            <!-- filas dinámicas -->
+            </tbody>
+        </table>
+        </section>
+    </main>
+
+    <script>
+    
+        const API_BASE = "http://10.117.231.66:8000";
+
+        async function cargarDatos() {
+        try {
+        // Traer historial (máx 10)
+        const res = await fetch(`${API_BASE}/api/historial?limit=10`);
+        const data = await res.json();
+        const items = data.items || [];
+
+        // Actualizar tarjetas con el más reciente
+        if (items.length > 0) {
+            const ultimo = items[0];
+            document.getElementById("temp-valor").textContent = formNum(ultimo.temperatura);
+            document.getElementById("hum-valor").textContent = formNum(ultimo.humedad);
+            document.getElementById("ts-valor").textContent = formFecha(ultimo.ts);
+        } else {
+            document.getElementById("temp-valor").textContent = "--";
+            document.getElementById("hum-valor").textContent = "--";
+            document.getElementById("ts-valor").textContent = "--";
+        }
+
+        // Pintar tabla (máximo 10 registros)
+        const tbody = document.getElementById("tabla-body");
+        tbody.innerHTML = "";
+        items.forEach(reg => {
+            const tr = document.createElement("tr");
+            const tdTs = document.createElement("td");
+            const tdT = document.createElement("td");
+            tdTs.textContent = formFecha(reg.ts);
+            tdT.textContent = formNum(reg.temperatura);
+            tr.appendChild(tdTs);
+            tr.appendChild(tdT);
+            tbody.appendChild(tr);
+        });
+
+        } catch (err) {
+        console.error("Error al cargar datos:", err);
+        }
+    }
+
+    function formNum(n) {
+        if (n === null || n === undefined) return "--";
+        const v = Number(n);
+        if (Number.isNaN(v)) return "--";
+        return v.toFixed(2);
+    }
+
+    function formFecha(iso) {
+        if (!iso) return "--";
+        try {
+            // Mostrar el ISO tal cual o convertir a local
+            const d = new Date(iso);
+            return d.toLocaleString();
+        } catch {
+            return iso;
+        }
+        }
+
+    // Primera carga y refresco cada 10s
+    cargarDatos();
+    setInterval(cargarDatos, 10000);
+    </script>
+</body>
+</html>
